@@ -1,0 +1,16 @@
+{
+  "name": "stock-daily",
+  "version": "1.0.0",
+  "description": "실시간 주가 추적 웹사이트",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'"
+  },
+  "keywords": ["stock", "finance", "netlify", "serverless"],
+  "license": "MIT"
+}

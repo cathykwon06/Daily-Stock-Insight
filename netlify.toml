@@ -1,0 +1,17 @@
+# netlify.toml
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/price"
+  to = "/.netlify/functions/price"
+  status = 200
+
+# 빌드 설정
+[build]
+  publish = "."
+  
+# 환경 설정
+[build.environment]
+  NODE_VERSION = "18"

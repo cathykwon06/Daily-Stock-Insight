@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stock Daily - 실시간 주가 추적</title>
+  <style>
+    body { 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; 
+      margin: 24px; 
+      background: #0b0d11; 
+      color: #e8eaf0; 
+    }
+    header { 
+      display:flex; 
+      align-items:center; 
+      justify-content:space-between; 
+      margin-bottom: 20px; 
+    }
+    h1 { 
+      font-size: 22px; 
+      margin: 0; 
+    }
+    .muted { 
+      color: #98a2b3; 
+      font-size: 12px; 
+    }
+    .grid { 
+      display:grid; 
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+      gap:16px; 
+    }
+    .card { 
+      background:#11151c; 
+      border:1px solid #1d2430; 
+      border-radius:16px; 
+      padding:16px; 
+      box-shadow: 0 4px 16px rgba(0,0,0,.25); 
+    }
+    .row { 
+      display:flex; 
+      align-items:baseline; 
+      justify-content:space-between; 
+    }
+    .code { 
+      font-size:12px; 
+      color:#9aa3b2; 
+    }
+    .price { 
+      font-size:24px; 
+      font-weight:700; 
+    }
+    .up { 
+      color:#3ddc84; 
+    }
+    .down { 
+      color:#ff5c5c; 
+    }
+    .flat { 
+      color:#e8eaf0; 
+      opacity:0.9; 
+    }
+    .rate { 
+      font-size:13px; 
+    }
+    footer { 
+      margin-top:24px; 
+      color:#9aa3b2; 
+      font-size:12px; 
+    }
+    button { 
+      background:#1b2330; 
+      color:#e8eaf0; 
+      border:1px solid #283244; 
+      padding:8px 12px; 
+      border-radius:10px; 
+      cursor:pointer; 
+    }
+    button:hover { 
+      background:#212b3a; 
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #98a2b3;
+    }
+    .error {
+      background: #2d1b1b;
+      border: 1px solid #5c2626;
+      color: #ff9999;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📈 Stock Daily</h1>
+    <div>
+      <span id="asOf" class="muted">—</span>
+      <button id="refreshBtn">새로고침</button>
+    </div>
+  </header>
+
+  <div id="errorContainer"></div>
+  <section class="grid" id="cards">
+    <div class="loading">주가 정보를 불러오는 중...</div>
+  </section>
+
+  <footer>
+    ※ 본 정보는 네이버금융의 공개 페이지를 기반으로 수집되며, 지연/오류가 발생할 수 있습니다.
+  </footer>
+
+  <script>
+    const TICKERS = [
+      { code: "005380", name: "현대차" },
+      { code: "005930", name: "삼성전자" },
+      { code: "000660", name: "SK하이닉스" },
+      { code: "035420", name: "NAVER" },
+    ];
+
+    async function fetchPrices() {
+      const q = TICKERS.map(t => t.code).join(",");
+      const url = `/api/price?code=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) {
+        throw new Error(`가격 정보를 불러오지 못했습니다. (${res.status})`);
+      }
+      return res.json();
+    }
+
+    function showError(message) {
+      document.getElementById("errorContainer").innerHTML = `<div class="error">❌ ${message}</div>`;
+    }
+
+    function clearError() {
+      document.getElementById("errorContainer").innerHTML = "";
+    }
+
+    function render({ updatedAt, results }) {
+      clearError();
+      const root = document.getElementById("cards");
+      root.innerHTML = "";
+      document.getElementById("asOf").textContent = `업데이트: ${new Date(updatedAt).toLocaleString("ko-KR")}`;
+
+      const map = new Map(results.map(r => [r.code, r]));
+      for (const t of TICKERS) {
+        const r = map.get(t.code) || {};
+        const price = r?.priceText ?? "—";
+        const change = r?.changeText ?? "";
+        const rate = r?.rateText ?? "";
+        const cls = rate.startsWith("-") ? "down" : (rate && !rate.startsWith("0") ? "up" : "flat");
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="row">
+            <div>
+              <div style="font-weight:600">${t.name}</div>
+              <div class="code">${t.code}</div>
+            </div>
+            <div class="price ${cls}">${price}</div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <div class="muted">전일대비</div>
+            <div class="rate ${cls}">${change ? change : ""} ${rate ? `(${rate})` : ""}</div>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <a href="https://finance.naver.com/item/main.nhn?code=${t.code}" target="_blank" class="muted">네이버 상세보기 ↗</a>
+          </div>
+        `;
+        root.appendChild(card);
+      }
+    }
+
+    async function refresh() {
+      try {
+        const refreshBtn = document.getElementById("refreshBtn");
+        refreshBtn.textContent = "로딩중...";
+        refreshBtn.disabled = true;
+        
+        const data = await fetchPrices();
+        render(data);
+        
+        refreshBtn.textContent = "새로고침";
+        refreshBtn.disabled = false;
+      } catch (e) {
+        console.error("Error:", e);
+        showError(e.message);
+        
+        const refreshBtn = document.getElementById("refreshBtn");
+        refreshBtn.textContent = "새로고침";
+        refreshBtn.disabled = false;
+      }
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", refresh);
+    refresh();
+    setInterval(refresh, 60_000);
+  </script>
+</body>
+</html>
+
